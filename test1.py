@@ -27,11 +27,14 @@ class Finger:
         
         # 局部坐标系计算
         if self.is_thumb:
+            # 大拇指：始终保持相对于负y轴的顺时针运动
             x_joint = self.l1 * np.sin(theta_rad)
             y_joint_local = -self.l1 * np.cos(theta_rad)
-            x_end = x_joint + self.l2 * np.sin(-2*theta_rad)
+            # 确保第二段连杆的运动方向与第一段一致
+            x_end = x_joint + self.l2 * np.sin(2*theta_rad)  # 使用相同的theta_rad
             y_end_local = y_joint_local - self.l2 * np.cos(2*theta_rad)
         else:
+            # 食指：相对于正y轴的顺时针运动
             x_joint = self.l1 * np.sin(theta_rad)
             y_joint_local = self.l1 * np.cos(theta_rad)
             x_end = x_joint + self.l2 * np.sin(2*theta_rad)
@@ -76,42 +79,18 @@ class Finger:
         # 转换到局部坐标系
         target_local = target_world - self.base_offset
         
-        def error(theta):
-            _, end_world = self.forward_kinematics(theta)
-            return np.linalg.norm(end_world - target_world)
-
-        # 多次优化尝试，从不同的初始点开始
-        best_theta = None
+        # 遍历所有可能的theta值，将0-180度分成1000份
+        best_theta = 0
         min_error = float('inf')
-        initial_guesses = [0, 45, 90, 135, 180]
         
-        for guess in initial_guesses:
-            try:
-                result = optimize.minimize(
-                    error,
-                    guess,
-                    bounds=[(0, 180)],
-                    method='Nelder-Mead',  # 使用 Nelder-Mead 方法
-                    options={'maxiter': 1000}
-                )
+        for theta in np.linspace(0, 180, 1000):
+            _, end_world = self.forward_kinematics(theta)
+            error = np.linalg.norm(end_world - target_world)
+            
+            if error < min_error:
+                min_error = error
+                best_theta = theta
                 
-                if result.success and result.fun < min_error:
-                    min_error = result.fun
-                    best_theta = result.x[0]
-                    
-                    # 如果误差已经足够小，提前退出
-                    if min_error < tolerance:
-                        break
-                        
-            except Exception:
-                continue
-        
-        if best_theta is None:
-            raise ValueError(f"无法找到有效解")
-            
-        if min_error > tolerance:
-            raise ValueError(f"无法达到目标点精度要求 (误差: {min_error:.3f})")
-            
         return best_theta
 
 # ================== 协同控制系统 ==================
@@ -230,7 +209,7 @@ class HandSystem:
         ax.plot(*target, 'k*', markersize=20, label='Target')
         
         # 绘制误差圆
-        error_circle = Circle(target, 0.1, fill=False, color='gray', linestyle='--', label='Tolerance (0.1)')
+        error_circle = Circle(target, 0.1, fill=False, color='gray', linestyle='--')
         ax.add_patch(error_circle)
         
         # 设置坐标系
@@ -252,7 +231,8 @@ if __name__ == "__main__":
     hand = HandSystem()
     
     # 指定世界坐标系目标点
-    target_world = np.array([4, -2])  # 使用原始目标点
+    target_world = np.array([4, -4])
+    #target_world = np.array([1, -4])
     
     # 协同运动规划
     result = hand.reach_common_target(target_world, tolerance=7.0)  # 大幅增加容差
