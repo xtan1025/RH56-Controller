@@ -112,4 +112,11 @@ The script can be run directly to start the pre-configured **Adaptive Force Cont
 
 ---
 `demonstrate_force_calibration(port: str, hand_id: int)`
-- **Function**: Starts an interactive force sensor calibration routine. It is recommended to run this before performing precision tasks. 
+- **Function**: Starts an interactive force sensor calibration routine. It is recommended to run this before performing precision tasks.
+
+## 7. Known Issues and Limitations
+
+- **Controller Precision and Response**: The precision and response speed of the finger controllers are currently limited.
+- **Force Control Overshoot**: Even at the slowest movement speeds, the force control can overshoot the preset target values by 50-100 grams.
+- **High-Speed Behavior**: When moving at high speeds, the fingers tend to "ignore" the preset maximum force thresholds and move directly to their peak force.
+- **Testing Status**: All features have currently only undergone light and informal testing. 
